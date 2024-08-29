@@ -44,8 +44,9 @@ def uniform(domain):
     return a/a.sum()
 
 def diracs(domain, index):
+    i = torch.tensor(index)
     a = torch.zeros(domain.size()[:-1])
-    a[*index] = 1/len(index)
+    a[tuple(i.T)] = 1/len(index)
     return a
 
 def simplex_proj(v):
