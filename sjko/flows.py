@@ -15,13 +15,11 @@ class FlowResult():
         self.time = torch.zeros(0)
         self.stats = {}
 
-    def plot_stats(self, stat, ax, **kwargs):
+    def plot_stats(self, stat, **kwargs):
         dl = len(self.time)-len(self.stats[stat])
         if  dl >= 0:
-            ax.plot(self.time[dl:], self.stats[stat], **kwargs)
-        else:
-            ax.plot(self.stats[stat], **kwargs)
-        return ax
+            return go.Scatter(x=self.time[dl:], y=self.stats[stat], **kwargs)
+        return go.Scatter(y=self.stats[stat], **kwargs)
 
     def _fig_ax_config(self, fig_side_inches=5, projection=None):
         # Configure fig and axes
@@ -172,7 +170,9 @@ class LagrangianFlowResult(FlowResult):
 
         def particle_flowdata(self, subsample_ratio=1, **kwargs):
             traj = self.particle_flow[::subsample_ratio,...]
-            return [go.Scatter(x=x[:,0], y=x[:,1], mode='markers', **kwargs) for x in traj]
+            marker = kwargs.pop('marker', {})
+            marker['size'] = marker.get('size', 3)
+            return [go.Scatter3d(x=x[:,0], y=x[:,1], z=.1+torch.zeros_like(x[:,0]), mode='markers', marker=marker, **kwargs) for x in traj]
 
         def anim(self, subsample_ratio, dt=100, fig_side_px=700, axisvisible=True, heatmap_grid_size=50, **kwargs):
             xm, xM, ym, yM = self.particle_flow[:,:,0].min().item(), self.particle_flow[:,:,0].max().item(), self.particle_flow[:,:,1].min().item(), self.particle_flow[:,:,1].max().item()
@@ -180,10 +180,11 @@ class LagrangianFlowResult(FlowResult):
             y = torch.linspace(ym, yM, heatmap_grid_size)
             xx, yy = torch.meshgrid(x, y, indexing='xy')
             xxx = torch.cat((xx[...,None], yy[...,None]), dim=-1)
-            heatmap = go.Heatmap(x=x, y=y, z=self.potential(xxx.reshape(-1, 2)).reshape(heatmap_grid_size, heatmap_grid_size))
+            heatmap = go.Surface(x=xx, y=yy, z=torch.zeros_like(xx), surfacecolor=self.potential(xxx.reshape(-1, 2)).reshape(heatmap_grid_size, heatmap_grid_size))
             particles = self.particle_flowdata(subsample_ratio, **kwargs)
             fig = go_figwithbuttons([heatmap, particles[0]], fig_side_px, dt, axisvisible=axisvisible)
-            fig.frames = [go.Frame(data=[particles[i]]) for i in range(len(particles))]
+            fig.frames = [go.Frame(data=[heatmap, particles[i]]) for i in range(len(particles))]
+            fig.update_layout(scene_camera=dict(eye=dict(x=0, y=0, z=1)), scene=dict(zaxis=dict(visible=False)))
             return fig
 
         def save_anim(self, filename, duration, subsample_ratio=1, fig_side_inches=5, levels=10, gridw=50):
@@ -207,18 +208,6 @@ class LagrangianFlowResult(FlowResult):
             anim = FuncAnimation(fig, func, frames=frames, interval=int(1e3*dt*duration))
             anim.save(filename)
             plt.close()
-
-class LagrangianSinkhornFlowResult(LagrangianFlowResult):
-    def __init__(self, eps, potential=None):
-        super().__init__(potential)
-        self.eps = eps
-        self.b_flow = None
-    
-    def append(self, tau, x, f_aa, stats={}):
-        super().append(tau, x, stats)
-        b = torch.exp(-f_aa/self.eps)
-        self.b_flow = (b[None,...] if self.b_flow is None 
-                  else torch.cat([self.b_flow, b[None,...]], dim=0))
 
 def SJKO_flow(µ0, F, time, eps, descent_tol=1e-3, descent_maxiter=20, lr=1e-2, sinkhorn_maxiter=20, sinkhorn_tol=1e-3, verbose=False):
     # Initialize
