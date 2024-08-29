@@ -39,13 +39,13 @@ def xy(x):
 def xyz(x):
     return dict(x=x[...,0], y=x[...,1], z=x[...,2])
 
-def uniform(domain, device=None):
-    a =  torch.ones(domain.size()[:-1], device=device)
+def uniform(domain):
+    a =  torch.ones(domain.size()[:-1], device=domain.device)
     return a/a.sum()
 
-def diracs(domain, index, device=None):
+def diracs(domain, index):
     i = torch.tensor(index)
-    a = torch.zeros(domain.size()[:-1], device=device)
+    a = torch.zeros(domain.size()[:-1], device=domain.device)
     a[tuple(i.T)] = 1/len(index)
     return a
 

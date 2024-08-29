@@ -4,7 +4,7 @@ from .utils import xy, xyz
 from .functionals import *
 
 def go_mass_flow(mass_flow, F, **kwargs):
-    dom = F.domain
+    dom = F.domain.to('cpu')
     zmax = mass_flow.max().item()
     return [go.Heatmap(x=dom[0,:,0], y=dom[:,0,1], z=µ, zmin=0, zmax=zmax, **kwargs) for µ in mass_flow]
 
