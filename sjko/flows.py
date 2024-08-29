@@ -59,7 +59,7 @@ class EulerianFlowResult(FlowResult):
 
     def append(self, tau, a, stats={}):
         self._append_stats(tau, stats)
-        a_ = a.reshape(self.F.domain.size()[:-1]) 
+        a_ = a.reshape(self.F.domain.size()[:-1]).to('cpu')
         self.mass_flow = (a_[None,...] if self.mass_flow is None 
                      else torch.cat([self.mass_flow, a_[None,...]], dim=0))
     
@@ -90,15 +90,15 @@ class EulerianSinkhornFlowResult(EulerianFlowResult):
 
     def append(self, tau, µ, f_µ, stats={}):
         super().append(tau, µ, stats)
-        b = torch.exp(-f_µ/self.eps)
+        b = torch.exp(-f_µ/self.eps).to('cpu')
         self.b_flow = (b[None,...] if self.b_flow is None 
                 else torch.cat([self.b_flow, b[None,...]], dim=0))
     
     def append_b(self, tau, b, stats={}):
         µ = b*torch.linalg.lstsq(self.Hc, b).solution
         super().append(tau, µ, stats)
-        self.b_flow = (b[None,...] if self.b_flow is None 
-                else torch.cat([self.b_flow, b[None,...]], dim=0))
+        self.b_flow = (b.to('cpu')[None,...] if self.b_flow is None 
+                else torch.cat([self.b_flow, b.to('cpu')[None,...]], dim=0))
 
     def go_spheredata(self, n=100, B_kwargs={}, sphere_kwargs={}):
         P, Q = apply_to_eig(self.Hc, lambda l:1/torch.sqrt(l), torch.sqrt)
