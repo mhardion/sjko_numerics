@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, ArtistAnimation
-from matplotlib.colors import LogNorm, Normalize
+from matplotlib.colors import Normalize
 import plotly.graph_objects as go
 from .utils import *
 from .functionals import *
@@ -61,9 +61,9 @@ class EulerianFlowResult(FlowResult):
         self.mass_flow = (a_[None,...] if self.mass_flow is None 
                      else torch.cat([self.mass_flow, a_[None,...]], dim=0))
     
-    def go_anim_flow(self, subsample_ratio=1):
-        data = go_mass_flow(self.mass_flow[::subsample_ratio], self.F)
-        fig = go_figwithbuttons([data[0]])
+    def anim_flow(self, subsample_ratio=1, **kwargs):
+        data = go_mass_flow(self.mass_flow[::subsample_ratio], self.F, **kwargs)
+        fig = go_figwithbuttons([data[0]], range=[self.F.domain.min().item(), self.F.domain.max().item()])
         fig.frames = [go.Frame(data=[d]) for d in data]
         return fig
     
@@ -172,18 +172,12 @@ class LagrangianFlowResult(FlowResult):
             traj = self.particle_flow[::subsample_ratio,...]
             marker = kwargs.pop('marker', {})
             marker['size'] = marker.get('size', 3)
-            return [go.Scatter3d(x=x[:,0], y=x[:,1], z=.1+torch.zeros_like(x[:,0]), mode='markers', marker=marker, **kwargs) for x in traj]
+            return [go.Scatter(x=x[:,0], y=x[:,1], mode='markers', marker=marker, **kwargs) for x in traj]
 
-        def anim(self, subsample_ratio, dt=100, fig_side_px=700, axisvisible=True, heatmap_grid_size=50, **kwargs):
-            xm, xM, ym, yM = self.particle_flow[:,:,0].min().item(), self.particle_flow[:,:,0].max().item(), self.particle_flow[:,:,1].min().item(), self.particle_flow[:,:,1].max().item()
-            x = torch.linspace(xm, xM, heatmap_grid_size)
-            y = torch.linspace(ym, yM, heatmap_grid_size)
-            xx, yy = torch.meshgrid(x, y, indexing='xy')
-            xxx = torch.cat((xx[...,None], yy[...,None]), dim=-1)
-            heatmap = go.Surface(x=xx, y=yy, z=torch.zeros_like(xx), surfacecolor=self.potential(xxx.reshape(-1, 2)).reshape(heatmap_grid_size, heatmap_grid_size))
+        def anim(self, subsample_ratio, dt=100, fig_side_px=700, axisvisible=True, **kwargs):
             particles = self.particle_flowdata(subsample_ratio, **kwargs)
-            fig = go_figwithbuttons([heatmap, particles[0]], fig_side_px, dt, axisvisible=axisvisible)
-            fig.frames = [go.Frame(data=[heatmap, particles[i]]) for i in range(len(particles))]
+            fig = go_figwithbuttons([particles[0]], fig_side_px, dt, axisvisible=axisvisible)
+            fig.frames = [go.Frame(data=[particles[i]]) for i in range(len(particles))]
             fig.update_layout(scene_camera=dict(eye=dict(x=0, y=0, z=1)), scene=dict(zaxis=dict(visible=False)))
             return fig
 
