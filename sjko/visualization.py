@@ -58,3 +58,11 @@ def go_figwithbuttons(data, fig_side_px=700, dt=100, range=[-1, 1], axisvisible=
                                                                             transition=dict(duration=0))])])]
                     ),
             )
+
+def potential_heatmap(V, domain, grid_size=50, **kwargs):
+    xm, xM, ym, yM = domain[...,0].min().item(), domain[...,0].max().item(), domain[...,1].min().item(), domain[...,1].max().item()
+    x = torch.linspace(xm, xM, grid_size)
+    y = torch.linspace(ym, yM, grid_size)
+    xx, yy = torch.meshgrid(x, y, indexing='ij')
+    xxx = torch.cat((xx[...,None], yy[...,None]), dim=-1)
+    return go.Heatmap(x=x, y=y, z=V(xxx.reshape(-1, 2)).reshape(grid_size, grid_size), **kwargs)
