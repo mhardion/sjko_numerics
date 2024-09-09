@@ -63,7 +63,7 @@ class EulerianFlowResult(FlowResult):
     
     def anim_flow(self, subsample_ratio=1, **kwargs):
         data = go_mass_flow(self.mass_flow[::subsample_ratio], self.F, **kwargs)
-        fig = go_figwithbuttons([data[0]], range=[self.F.domain.min().item(), self.F.domain.max().item()])
+        fig = go_figwithbuttons2d([data[0]], axisrange=[self.F.domain.min().item(), self.F.domain.max().item()])
         fig.frames = [go.Frame(data=[d]) for d in data]
         return fig
     
@@ -74,7 +74,7 @@ class EulerianFlowResult(FlowResult):
         dt = subsample_ratio*duration/self.mass_flow.size(0)
         simplex = self.go_simplexdata(n)
         flow = self.go_flowdata_simplex(subsample_ratio)
-        fig = go_figwithbuttons(simplex+[flow[0]], fig_side_px, dt)
+        fig = go_figwithbuttons3d(simplex+[flow[0]], fig_side_px, dt)
         fig.frames = [go.Frame(data=simplex + [flow[i]])
                           for i in range(len(flow))]
         return fig
@@ -98,13 +98,14 @@ class EulerianSinkhornFlowResult(EulerianFlowResult):
         self.b_flow = (b.to('cpu')[None,...] if self.b_flow is None 
                 else torch.cat([self.b_flow, b.to('cpu')[None,...]], dim=0))
 
-    def go_spheredata(self, n=100, B_kwargs={}, sphere_kwargs={}):
+    def go_spheredata(self, n=100, B_kwargs={}, sphere_kwargs={}, rotationlines_kwargs={}):
         P, Q = apply_to_eig(self.Hc, lambda l:1/torch.sqrt(l), torch.sqrt)
         t = torch.linspace(0, 1, n)[:,None]
         t_ = 1-t
         B = torch.cat([t_*Q[:,i] + t*Q[:,(i+1)%3] for i in range(3)])
         B /= torch.sqrt((B*B).sum(-1)[:,None])
         Bkwargs = dict(dict(mode='lines', line=dict(width=1, color='red'), name=r'Boundary of B'), **B_kwargs)
+        rkwargs = dict(dict(mode='lines', line=dict(width=1, color='black')), **rotationlines_kwargs)
         b_line = go.Scatter3d(xyz(B), **Bkwargs)
         data = [b_line]
         if isinstance(self.F, PotentialEnergy):
@@ -130,7 +131,8 @@ class EulerianSinkhornFlowResult(EulerianFlowResult):
             c, s = torch.cos(theta), torch.sin(theta)
             for l, r in zip(ls, rs):
                 circ = l*a + r*c*basis[0] + r*s*basis[1]
-                data.append(go.Scatter3d(xyz(circ), mode='lines', line=dict(width=1, color='black'), showlegend=False))
+                data.append(go.Scatter3d(xyz(circ), **rkwargs))
+                rkwargs['showlegend'] = False
         else:
             data.append(go_sphere(colorscale=[[0, 'gray'], [1, 'gray']], **dict(showscale=False, **sphere_kwargs)))
         return data
@@ -142,11 +144,11 @@ class EulerianSinkhornFlowResult(EulerianFlowResult):
 
 
 
-    def go_anim_b(self, subsample_ratio=1, dt=100, fig_side_px=700, axisvisible=True, n=100, B_kwargs={}, sphere_kwargs={}, traj_kwargs=dict(line=dict(width=5), marker=dict(size=10))):
+    def anim_b(self, subsample_ratio=1, dt=100, fig_side_px=700, axisvisible=True, n=100, B_kwargs={}, sphere_kwargs={}, rotationlines_kwargs={}, traj_kwargs=dict(line=dict(width=5), marker=dict(size=10))):
         if self.Hc.size(0) == 3:
-            sphere = self.go_spheredata(n, B_kwargs, sphere_kwargs)
+            sphere = self.go_spheredata(n, B_kwargs, sphere_kwargs, rotationlines_kwargs)
             flow_lines = self.go_flowdata_b(subsample_ratio, **traj_kwargs)
-            fig = go_figwithbuttons(sphere+[flow_lines[0]], fig_side_px, dt, axisvisible=axisvisible)
+            fig = go_figwithbuttons3d(sphere+[flow_lines[0]], fig_side_px, dt, axisvisible=axisvisible)
             fig.frames = [go.Frame(data=sphere + [flow_lines[i]])
                           for i in range(len(flow_lines))]
             return fig
@@ -171,14 +173,16 @@ class LagrangianFlowResult(FlowResult):
         def particle_flowdata(self, subsample_ratio=1, **kwargs):
             traj = self.particle_flow[::subsample_ratio,...]
             marker = kwargs.pop('marker', {})
-            marker['size'] = marker.get('size', 3)
+            marker['size'] = marker.get('size', 5)
             return [go.Scatter(x=x[:,0], y=x[:,1], mode='markers', marker=marker, **kwargs) for x in traj]
 
-        def anim(self, subsample_ratio, dt=100, fig_side_px=700, axisvisible=True, **kwargs):
+        def anim(self, axisrange, subsample_ratio=1, dt=100, fig_side_px=700, axisvisible=True, **kwargs):
             particles = self.particle_flowdata(subsample_ratio, **kwargs)
-            fig = go_figwithbuttons([particles[0]], fig_side_px, dt, axisvisible=axisvisible)
-            fig.frames = [go.Frame(data=[particles[i]]) for i in range(len(particles))]
-            fig.update_layout(scene_camera=dict(eye=dict(x=0, y=0, z=1)), scene=dict(zaxis=dict(visible=False)))
+            fig = go_figwithbuttons2d([particles[0]], fig_side_px, dt, axisrange=axisrange, axisvisible=axisvisible)
+            fig.frames = [go.Frame(data=[particles[i]],
+                                   layout=go.Layout(xaxis=dict(range=axisrange, autorange=False), yaxis=dict(range=axisrange, autorange=False)))
+                          for i in range(len(particles))]
+            # fig.update_layout(scene_camera=dict(eye=dict(x=0, y=0, z=1)), scene=dict(zaxis=dict(visible=False)))
             return fig
 
         def save_anim(self, filename, duration, subsample_ratio=1, fig_side_inches=5, levels=10, gridw=50):
@@ -237,6 +241,42 @@ def SJKO_flow(µ0, F, time, eps, descent_tol=1e-3, descent_maxiter=20, lr=1e-2, 
                    {'F': F(µ_prev).item(),
                     'descent_iter': k,
                     'sinkhorn_iter': iter_counter.item()})
+    return res
+
+def SJKO_flow_lagrangian(x0, potential, time, eps, descent_tol=1e-3, descent_maxiter=20, lr=1e-2, sinkhorn_maxiter=20, sinkhorn_tol=1e-3):
+    x = x0.clone().reshape(-1, x0.shape[-1])
+    res = LagrangianFlowResult(potential)
+    µ = torch.ones(x.shape[0])
+    f_aa = self_transport(µ, costmatrix(x,x), eps).flatten()
+    res.append(0, x0.clone(), stats={'F': potential(x.detach()).mean().item()})
+    x_prev = x.clone()
+    x.requires_grad = True
+    for i, tau in enumerate(time[1:] - time[:-1]):
+        k=0
+        iter_counter = torch.zeros(1)
+        while (k==0 or ((x.grad - x.grad.mean()) < -descent_tol).any()) and k < descent_maxiter:
+            if x.grad is not None:
+                x.grad.zero_()
+            f_aa, g_bb, g_ab, f_ba = sinkhorn_loop(
+                µ,
+                µ,
+                costmatrix(x, x),
+                costmatrix(x_prev, x_prev),
+                costmatrix(x,x_prev),
+                [eps]*sinkhorn_maxiter,
+                init=(None if not i else [f_aa, g_bb, g_ab, f_ba]),
+                tol=sinkhorn_tol,
+                iter_counter=iter_counter
+            )
+            loss = (f_ba - f_aa + g_ab - g_bb).mean() + 2*tau*potential(x).mean()
+            loss.backward()
+            x.data -= lr*x.grad
+            k+=1
+        x_prev = x.detach().clone()
+        res.append(tau, x_prev.reshape(x0.size()).to('cpu'),
+                   stats={'F': potential(x_prev).mean().item(),
+                          'descent_iter': k,
+                          'sinkhorn_iter': iter_counter.item()})
     return res
 
 def explicit_lagrangian(x0, potential, time):

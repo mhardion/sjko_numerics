@@ -19,7 +19,7 @@ def go_traj(traj, **kwargs):
                                mode='lines+markers',
                                marker=dict(marker, size=i*[0]+[size]),
                                line=line,
-                               **kwargs) for i in range(traj.size(0)-1)]
+                               **kwargs) for i in range(traj.size(0))]
     return flow_lines
 
 def go_sphere(N=100, heatmap=None, **kwargs):
@@ -34,17 +34,39 @@ def go_sphere(N=100, heatmap=None, **kwargs):
         return go.Surface(x=x, y=y, z=z, surfacecolor=h, **kwargs)
     return go.Surface(x=x, y=y, z=z, **kwargs)
 
-def go_figwithbuttons(data, fig_side_px=700, dt=100, range=[-1, 1], axisvisible=True):
+def go_figwithbuttons3d(data, fig_side_px=700, dt=100, axisrange=[-1, 1], axisvisible=True, title=""):
     return go.Figure(data=data,
                      layout=go.Layout(
                          height=fig_side_px,
                          width=fig_side_px,
                          scene=dict(
-                         xaxis=dict(range=range, autorange=False, visible=axisvisible),
-                         yaxis=dict(range=range, autorange=False, visible=axisvisible),
-                         zaxis=dict(range=range, autorange=False, visible=axisvisible),
+                         xaxis=dict(range=axisrange, autorange=False, visible=axisvisible),
+                         yaxis=dict(range=axisrange, autorange=False, visible=axisvisible),
+                         zaxis=dict(range=axisrange, autorange=False, visible=axisvisible),
                          aspectmode='cube'),
-                         title="Flow",
+                         title=title,
+                         updatemenus=[dict(type="buttons",
+                                           showactive=False,
+                                           buttons=[dict(label='Play',
+                                                         method='animate',
+                                                         args=[None, dict(frame=dict(duration=dt, redraw=True),
+                                                                            fromcurrent=True)]),
+                                                    dict(label='Pause',
+                                                         method='animate',
+                                                         args=[[None], dict(frame=dict(duration=0, redraw=False),
+                                                                            mode='immediate',
+                                                                            transition=dict(duration=0))])])]
+                    ),
+            )
+
+def go_figwithbuttons2d(data, fig_side_px=700, dt=100, axisrange=[-1, 1], axisvisible=True, title=""):
+    return go.Figure(data=data,
+                     layout=go.Layout(
+                         height=fig_side_px,
+                         width=fig_side_px,
+                         xaxis=dict(range=axisrange, autorange=False, visible=axisvisible),
+                         yaxis=dict(range=axisrange, autorange=False, visible=axisvisible),
+                         title=title,
                          updatemenus=[dict(type="buttons",
                                            showactive=False,
                                            buttons=[dict(label='Play',
