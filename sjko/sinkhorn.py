@@ -1,6 +1,7 @@
 import torch
 from .utils import *
 
+# Code was adapted from the geomloss package, see https://github.com/jeanfeydy/geomloss 
 def softmin(eps, C, f):
     return -eps * (f.view(1, -1) - C / eps).logsumexp(1).view(-1)
 
@@ -29,13 +30,9 @@ def sinkhorn_loop(µ1, µ2, C_xx, C_yy, C_xy, eps_list, init=None, tol=1e-2, ite
                sqnorm(gt_ab - g_12).item()) < tol**2:
             break
 
-        # Symmetrized updates - see Fig. 3.24.b in Jean Feydy's PhD thesis:
-        f_21, g_12 = 0.5 * (f_21 + ft_ba), 0.5 * (g_12 + gt_ab)  # OT(a,b) wrt. a, b
-        f_11, g_22 = 0.5 * (f_11 + ft_aa), 0.5 * (g_22 + gt_bb)  # OT(a,a), OT(b,b)
-    # As a very last step, we perform a final "Sinkhorn" iteration.
-    # As detailed above (around "torch.autograd.set_grad_enabled(False)"),
-    # this allows us to retrieve correct expressions for the gradient
-    # without having to backprop through the whole Sinkhorn loop.
+        f_21, g_12 = 0.5 * (f_21 + ft_ba), 0.5 * (g_12 + gt_ab) 
+        f_11, g_22 = 0.5 * (f_11 + ft_aa), 0.5 * (g_22 + gt_bb) 
+
     torch.autograd.set_grad_enabled(True)
 
     f_21, g_12 = (
