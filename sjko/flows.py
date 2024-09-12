@@ -243,7 +243,7 @@ def SJKO_flow(µ0, F, time, eps, descent_tol=1e-3, descent_maxiter=20, lr=1e-2, 
                     'sinkhorn_iter': iter_counter.item()})
     return res
 
-def SJKO_flow_lagrangian(x0, potential, time, eps, descent_tol=1e-3, descent_maxiter=20, lr=1e-2, sinkhorn_maxiter=20, sinkhorn_tol=1e-3):
+def SJKO_flow_lagrangian(x0, potential, time, eps, descent_tol=1e-3, descent_maxiter=20, lr=1e-2, sinkhorn_maxiter=20, sinkhorn_tol=1e-3, verbose=False):
     x = x0.clone().reshape(-1, x0.shape[-1])
     res = LagrangianFlowResult(potential)
     µ = torch.ones(x.shape[0])
@@ -252,6 +252,9 @@ def SJKO_flow_lagrangian(x0, potential, time, eps, descent_tol=1e-3, descent_max
     x_prev = x.clone()
     x.requires_grad = True
     for i, tau in enumerate(time[1:] - time[:-1]):
+        if verbose:
+            print(f'\r JKO step {i}...', end='')
+        k = 0
         k=0
         iter_counter = torch.zeros(1)
         while (k==0 or ((x.grad - x.grad.mean()) < -descent_tol).any()) and k < descent_maxiter:
