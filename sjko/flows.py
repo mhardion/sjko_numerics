@@ -218,7 +218,7 @@ def SJKO_flow(µ0, F, time, eps, descent_tol=1e-3, descent_maxiter=20, lr=1e-2, 
     tau = time[1:] - time[:-1]
     for i in range(len(time)-1):
         if verbose:
-            print(f'\r JKO step {i}...', end='')
+            print(f'\r JKO step {i+1}...', end='')
         k = 0
         iter_counter = torch.zeros(1)
         while (k==0 or ((grad - µ @ grad) < -descent_tol).any()) and k < descent_maxiter:
@@ -253,7 +253,7 @@ def SJKO_flow_lagrangian(x0, potential, time, eps, descent_tol=1e-3, descent_max
     x.requires_grad = True
     for i, tau in enumerate(time[1:] - time[:-1]):
         if verbose:
-            print(f'\r JKO step {i}...', end='')
+            print(f'\r JKO step {i+1}...', end='')
         k = 0
         k=0
         iter_counter = torch.zeros(1)
