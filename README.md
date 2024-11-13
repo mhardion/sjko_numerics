@@ -1,2 +1,2 @@
 # Sinkhorn-JKO numerics
-Numerical illustrations for the Master's thesis "Gradient Flows in the Geometry of the Sinkhorn Divergence". The folder [`sjko/`](sjko/) contains the necessary routines and the notebook [`SinkhornFlows.ipynb`](SinkhornFlows.ipynb) contains the experiments.
+Numerical illustrations for the Master's thesis "[Gradient Flows in the Geometry of the Sinkhorn Divergence](https://mhardion.github.io/assets/pdf/sinkhorn_flows.pdf)". The folder [`sjko/`](sjko/) contains the necessary routines and the notebook [`SinkhornFlows.ipynb`](SinkhornFlows.ipynb) contains the experiments.
